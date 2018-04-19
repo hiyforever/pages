@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title><![CDATA[Git 日常笔记]]></title>
+    <url>%2Fgit%2F</url>
+    <content type="text"><![CDATA[Git 的一些使用方法。 已 push 代码回滚 12git reset --hard HEAD^git push origin --force]]></content>
+      <categories>
+        <category>git</category>
+      </categories>
+      <tags>
+        <tag>git</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Go 日常笔记]]></title>
+    <url>%2Fgonote%2F</url>
+    <content type="text"><![CDATA[Go 中一些常被忽略的地方。 append 在切片容量不足时，会返回一个新的切片，且不改变原切片的任何值 12345678s := []int&#123;1, 2&#125;s1 := append(s[:1], 3)println(s, s1)fmt.Println(s, s1)s2 := append(s[:1], 4, 5)println(s, s2)fmt.Println(s, s2) 输出 1234[2/2]0x10410020 [2/2]0x10410020[1 3] [1 3][2/2]0x10410020 [3/4]0x10410050[1 3] [1 4 5] 值方法可通过指针和值调用， 而指针方法只能通过指针来调用；值方法针对对象副本，每次调用都会先进行内存复制 12345678910type Int intfunc (i *Int) String() string &#123; return "My String()"&#125;func main() &#123; var i Int fmt.Println(i, &amp;i)&#125; 输出 10 My String() 接口类型并不能屏蔽非接口方法 123456789101112131415type Int intfunc (i *Int) String() string &#123; return "My String()"&#125;func (i *Int) Error() string &#123; return "My Error()"&#125;func main() &#123; var i Int var s fmt.Stringer = &amp;i fmt.Println(&amp;i, s)&#125; 输出 1My Error() My Error() 向满 channel 发数据和从空 channel 取数据，只有在没有 goroutine 运行时（注：这里运行指的非 asleep 状态，读写 channel 的阻塞态算 asleep，time.Sleep 不算，select 所有分支都阻塞时算 asleep）会报错，有其它 goroutine 运行时才会阻塞 关闭的 channel 在缓冲区没有清空时，仍能正常取数据，第二参数返回 true 1234567c := make(chan int)c &lt;- 1close(c)i, ok := &lt;-cprintln(i, ok)i, ok = &lt;-cprintln(i, ok) 输出 121 true0 false select default 嵌套提高 channel 优先级 12345678910for &#123; select &#123; case &lt;-highChannel: default: select &#123; case &lt;-lowChannel: default: &#125; &#125;&#125; select default 分离保证 channel 最少调度 1234567891011for &#123; select &#123; case &lt;-c1: default: &#125; select &#123; case &lt;-c2: default: &#125;&#125; make(chan type) 默认容量为 0，即同步 channel 关闭所有接收端，不跳过已缓冲数据（一对多） 123456789101112131415161718 ch := make(chan int, 3) go func(ch chan int) &#123; for i := 0; i &lt; 10; i++ &#123; ch &lt;- i &#125; close(ch) &#125;(ch)LOOP: for &#123; select &#123; case i, running := &lt;-ch: if !running &#123; break LOOP &#125; print(i) &#125; &#125; 输出 10123456789 快速关闭所有接收端，跳过已缓冲数据（一对多） 12345678910111213141516171819202122 ch := make(chan int, 3) running := make(chan bool) go func(ch chan int, running chan bool) &#123; for i := 0; i &lt; 10; i++ &#123; ch &lt;- i &#125; close(running) &#125;(ch, running)LOOP: for &#123; select &#123; case &lt;-running: break LOOP default: &#125; select &#123; case i := &lt;-ch: print(i) default: &#125; &#125; 输出 10123456 关闭所有发送端（多对一） 1234567891011121314151617181920212223 ch := make(chan int, 3) running := make(chan bool) go func(ch chan int, running chan bool) &#123; for i := 0; i &lt; 10; i++ &#123; &lt;-ch &#125; close(running) &#125;(ch, running)LOOP: for i := 0; ; &#123; select &#123; case &lt;-running: break LOOP default: &#125; select &#123; case ch &lt;- i: print(i) i++ default: &#125; &#125; 输出 10123456789]]></content>
+      <categories>
+        <category>go</category>
+      </categories>
+      <tags>
+        <tag>go</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Spark Streaming入门实践]]></title>
+    <url>%2Fsparkstreaming%2F</url>
+    <content type="text"><![CDATA[消费hermes kafkas数据，实时跟踪用户行为 初始化Spark配置123456789101112String appName = "MyAppName";final String checkpointDir = "hdfs:///user/checkpoint/" + appName;final long batchInterval = 60; // 数据采集时间范围（秒）final SparkConf sparkConf = new SparkConf().setAppName(appName);JavaStreamingContext ssc = JavaStreamingContext.getOrCreate(checkpointDir, () -&gt; &#123; // 新建spark streaming context JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(batchInterval)); jssc.sparkContext().setLogLevel("error"); jssc.checkpoint(checkpointDir); return jssc;&#125;); 创建Kafka输入离散流1234JavaPairInputDStream&lt;String, Pageview&gt; stringPageviewPairInputDStream = KafkaUtils.createDirectStream( ssc, ...); 数据预处理12345// 过滤无关数据JavaPairDStream&lt;String, Pageview&gt; stringPageviewPairDStream = stringPageviewPairInputDStream.filter(pageviewFilterFunction);// 去除重复数据stringPageviewPairDStream = stringPageviewPairDStream.reduceByKey(pageviewDistinctFunction); 用户行为跟踪处理1234567891011121314151617181920212223242526272829// 处理用户访问情况stringPageviewPairDStream = stringPageviewPairDStream.updateStateByKey((Function2&lt;List&lt;Pageview&gt;, Optional&lt;Pageview&gt;, Optional&lt;Pageview&gt;&gt;) (v1, v2) -&gt; &#123; // 没有新访问的情况，考虑是否继续追踪该用户 if (v1.isEmpty()) &#123; if (v2.isPresent() &amp;&amp; System.currentTimeMillis() - v2.get().getTimestamp() &gt; TIMEOUT) &#123; Pageview oldPageview = v2.get(); ... return Optional.absent(); &#125; return v2; &#125; // 有新访问的情况，考虑是否符合要求 Pageview newPageview = v1.get(0); ... if (isReady) &#123; return Optional.of(newPageview); &#125; // 新访问不合要求，且过去没有访问的情况 if (!v2.isPresent()) &#123; return Optional.absent(); &#125; // 新访问不合要求，且过去有访问的情况，更新访问时间 Pageview oldPageview = v2.get(); oldPageview.setTimestamp(newPageview.getTimestamp()); return Optional.of(oldPageview);&#125;); 启动Spark应用123456789stringPageviewPairDStream.print(0);ssc.start();try &#123; ssc.awaitTermination();&#125; catch (InterruptedException e) &#123; LOGGER.error(e);&#125; Spark Streaming性能指标及配置 关键性能指标 Scheduling Delay: Kafka队列数据读取时间，若太高需增大batch interval Processing Time: 数据处理时间，若太高请优化代码，或增加资源分配 配置参数 spark.default.parallelism: 并行度，取决于任务数量，也就是一共需要多少线程来执行这些任务，一般为所有机器CPU总数的2~3倍，即每个CPU开2~3个线程，以充分利用CPU资源 spark.sql.shuffle.partitions: 分区数，取决于kafka队列的分区数，若每个分区数据量不大，可适当减少这个值 spark.streaming.concurrentJobs: 并行作业数量]]></content>
+      <categories>
+        <category>java</category>
+        <category>spark</category>
+        <category>spark streaming</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+        <tag>spark</tag>
+        <tag>spark streaming</tag>
+        <tag>hermes kafka</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Spring Boot使用笔记]]></title>
+    <url>%2Fspringboot%2F</url>
+    <content type="text"><![CDATA[Spring Boot从入门到入坑 项目结构完整的Spring Boot项目一般拥有以下目录结构，当项目够大时推荐先按功能模块化各部分功能，再在各模块中采用此目录结构123456789101112131415161718192021222324252627282930313233343536root├─build.gradle└─src ├─main │ ├─java/com/spring/boot │ │ ├─Application.java │ │ ├─web │ │ │ ├─controller │ │ │ │ └─GreetingController.java │ │ │ └─json │ │ │ └─GreetingJson.java │ │ ├─service │ │ │ ├─GreetingService.java │ │ │ └─impl │ │ │ └─GreetingServiceImpl.java │ │ ├─domain │ │ │ ├─repository │ │ │ │ ├─GreetingRepository.java │ │ │ │ └─impl │ │ │ │ └─GreetingRepositoryImpl.java │ │ │ └─entity │ │ │ └─Greeting.java │ │ ├─enums │ │ │ └─GreetingType.java │ │ ├─exception │ │ │ └─BusinessException.java │ │ ├─config │ │ │ ├─InitializingBeanConfig.java │ │ │ ├─SchedulingConfig.java │ │ │ └─WebSecurityConfig.java │ │ └─utils │ └─resources │ ├─application.properties │ └─data.sql └─test/java/cn/ibm/qrepmonitor └─ApplicationTests.java GradleSpring Boot的build.gradle文件包含以下内容12345678910111213141516171819202122232425plugins &#123; id 'org.springframework.boot' version '1.5.2.RELEASE' id 'java'&#125;jar &#123; baseName = 'ProjectName' version = '1.0'&#125;sourceCompatibility = 1.8tasks.withType(JavaCompile) &#123; options.encoding = "UTF-8"&#125;repositories &#123; jcenter()&#125;dependencies &#123; compile('org.springframework.boot:spring-boot-starter-web') runtime('org.springframework.boot:spring-boot-devtools') testCompile('org.springframework.boot:spring-boot-starter-test')&#125; 其它常用依赖123compile('org.springframework.boot:spring-boot-starter-security')compile('org.springframework.security.oauth:spring-security-oauth2')compile('org.springframework.boot:spring-boot-starter-data-jpa') 自定义本地依赖1compile(fileTree(dir: 'lib', include: '*.jar'))]]></content>
+      <categories>
+        <category>java</category>
+        <category>spring</category>
+        <category>spring boot</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+        <tag>spring</tag>
+        <tag>spring boot</tag>
+        <tag>spring mvc</tag>
+        <tag>spring data jpa</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Java 日常笔记]]></title>
+    <url>%2Fjavanote%2F</url>
+    <content type="text"><![CDATA[Java 中一些常被忽略的地方。 float/double 因精度问题，不能用于大数计算 123System.out.println(123456789f); System.out.println(12345678909876543d);System.out.println(true ? 123456789 : 1f); 输出 1231.23456792E81.2345678909876544E161.23456792E8 float 与 double 之间因精度问题，不能比较 1System.out.println(3.3 &gt; 3.3f); 输出 1true 计算 BigDecimal 应使用字符串进行初始化构造，使用 compareTo 进行比较 1234567891011BigDecimal a = new BigDecimal(2.1).subtract(new BigDecimal(1.2));BigDecimal b = new BigDecimal(0.9);System.out.println(a.equals(b));System.out.println(a.compareTo(b));System.out.println(a.doubleValue() == b.doubleValue());BigDecimal c = new BigDecimal("2.1").subtract(new BigDecimal("1.20"));BigDecimal d = new BigDecimal("0.9");System.out.println(c.equals(d));System.out.println(c.compareTo(d));System.out.println(c.doubleValue() == d.doubleValue()); 输出 123456false1falsefalse0true 考虑实现 Comparable 接口，不要使用差值以免溢出 Math.abs(Integer.MIN_VALUE) &lt; 0 奇偶判别使用 (i &amp; 1) == 0；判断 2 指数 (i &amp; (i - 1)) == 0 Random 从 Java7 开始为线程安全类，ThreadLocalRandom 效率更高，SecureRandom 更随机 Thread.join 调用 wait 方法，释放了当前对象锁 DateFormat 非线程安全类（原因：Calendar），多线程访问应用 ThreadLocal 创建；DateFormat 无法识别毫秒格式，使用 SimpleDateFormat 指定具体格式识别；Java8 用 DateTimeFormatter 代替，线程安全类 Date 和 Calendar 的月份从 0 开始，表示一月；星期从 1 开始，表示周日；Date 无时区，new Date(0) 为标准零时，即北京时间 8 点， Calendar 默认当地时区，Calendar.getInstance().clear() 为当地时间零时；Java8 用 java.time 包代替，线程安全类 equals 重写规则，利用 Double.compare、Float.compare、Arrays.equals 和 Arrays.hashCode 方法 123456789101112131415@Overridepublic boolean equals(Object obj) &#123; if (obj == this) &#123; return true; &#125; if (obj == null || this.getClass() != obj.getClass() || this.hashCode() != obj.hashCode()) &#123; return false; &#125; return ...;&#125;@Overridepublic int hashCode() &#123; return ...;&#125; 文件读写 123456789new FileInputStream("fileName"); // 无缓冲字节输入流new BufferedInputStream(new FileInputStream("fileName")); // 缓冲字节输入流new PrintStream("fileName"); // 无缓冲字节输出流（内部 FileOutputStream，需要注意部分方法并非字节输出流，或直接用 FileOutputStream）new PrintStream(new BufferedOutputStream(new FileOutputStream("fileName"))); // 缓冲字节输出流（需要注意部分方法并非字节输出流，或直接用 BufferedOutputStream）new Scanner(new BufferedReader(new FileReader("fileName"))); // 缓冲字符输入流（或直接用 BufferedReader）new PrintWriter("fileName"); // 缓冲字符输出流（内部 BufferedWriter） Stack extends Vector，用 Deque 吧 复合赋值隐含自动转型，编译器不会报错，但不利于阅读 1234byte b = 0;short i = 128;b += i; // 相当于 b = (byte) (b + i); 注意 b + i 会先提升 int 类型System.out.println(b); 输出 1-128 byte[] 转 String 需指定字符集，因为默认字符集根据平台而定，是不确定的 移位操作的移位数会自动取余，int 的 % 32，long 的 % 64 12System.out.println(-1 &lt;&lt; 32);System.out.println(-1 &lt;&lt; 31 &lt;&lt; 1); 输出 12-10 实现不同接口同一方法抛出的异常取交集的子集 1234567891011121314interface interface1 &#123; void throwsException() throws FileNotFoundException, IOException;&#125;interface interface2 &#123; void throwsException() throws IOException, ClassNotFoundException;&#125;class Class implements interface1, interface2 &#123; @Override public void throwsException() throws ClosedChannelException &#123; &#125;&#125; 成员变量与动态代码块中的异常在构造函数中抛出 1234567891011boolean bool = throwsException();&#123; throwsException();&#125;public Class() throws Exception &#123;&#125;public static boolean throwsException() throws Exception &#123; throw new Exception();&#125; try-with-resources 12345678910111213141516171819202122232425262728293031323334353637public static void main(String[] args) &#123; // since java7 try (InputStream inputStream = new FileInputStream("fileName"); OutputStream outputStream = new FileOutputStream("fileName")) &#123; &#125; catch (FileNotFoundException e) &#123; e.printStackTrace(); &#125; catch (IOException e) &#123; // throw by close method &#125; // before java7 InputStream inputStream = null; OutputStream outputStream = null; try &#123; inputStream = new FileInputStream("fileName"); outputStream = new FileOutputStream("fileName"); &#125; catch (FileNotFoundException e) &#123; e.printStackTrace(); &#125; finally &#123; // try to close by Closeable close(inputStream, outputStream); &#125;&#125;/** * Try to close resources which implements &#123;@link Closeable&#125; * * @param closeables methods which implements &#123;@link Closeable&#125; */private static void close(Closeable... closeables) &#123; for (Closeable closeable : closeables) &#123; if (closeable != null) &#123; try &#123; closeable.close(); &#125; catch (Exception e) &#123; &#125; &#125; &#125;&#125; 重载参数就近 123456789101112131415public static void main(String[] args) &#123; func(null); // call func(B b)&#125;class A &#123;&#125;class B extends A &#123;&#125;public static void func(A a) &#123;&#125;public static void func(B b) &#123;&#125; 类初始化通过 Class.forName、实例化、调用静态方法或访问静态变量触发 类变量初始化-&gt;类变量从上到下依次赋值 12345678public class Class &#123; private static Class clazz = new Class(); private static int num = 1; private Class() &#123; System.out.println(num); &#125;&#125; 输出 10 类的初始化线程锁：同一时刻只能有一个线程进行一个类的初始化，其它线程对该类的初始化请求将被挂起 重写类的调用 1234567891011121314151617181920public class A &#123; public int override() &#123; return 1; &#125; public void callOverride() &#123; System.out.println(override()); &#125; public static void main(String[] args) &#123; new B().callOverride(); &#125;&#125;class B extends A &#123; @Override public int override() &#123; return 2; &#125;&#125; 输出 12 被遮蔽的方法不会重载 123456789101112void wake() &#123;&#125;void sleep() &#123;&#125;class Class &#123; void sleep(int time) &#123; wake(); // correct sleep(); // error &#125;&#125;; 动态内部类的构造器具有一个隐藏参数，反射构建时需指明 1Inner.class.getConstructor(Outer.class).newInstance(new Outer()); Process 的输入流和错误流有缓冲区大小限制（由平台决定，本机测试为 4120 个字符），任一缓冲区满则进程阻塞，故需及时读取返回内容，若无需返回结果，则直接关闭相应流 123Process p = Runtime.getRuntime().exec("command");p.getInputStream().close();p.getErrorStream().close(); WeakHashMap 将 key 加到 WeakReference 而非 value，是因为在 HashMap 中 key 具有唯一性，而 value 可能同时存在不同 key 中，不能实现部分回收，且若要 value 能被及时回收，只要将其加入 WeakReference 再放入 HashMap 即可；WeakHashMap 使用强引用常量 NULL_KEY 来代替 null，导致其无法被回收，value 的强引用需要再次操作 WeakHashMap 才能去除 clone 方法应调用 super.clone() 以返回正确的对象类型，clone 其每个引用型成员变量，加上 implements Cloneable，但 final 引用型成员变量无法 clone，且避免调用可重写方法以防止子类覆写导致其调用 super.clone() 出错，最重要的是确认所有的父类是否也满足这些要求。综上所述，应优先考虑拷贝构造器，而不是覆写 clone 方法 实现 toString 方法，并说明相应的格式样例 finalize 被动释放相关资源，通常用于对功能和性能没有影响的资源，无法保证一定会被执行，且即使执行也会由于低优先级而延长对象回收时间]]></content>
+      <categories>
+        <category>java</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[Hello World - Keras]]></title>
+    <url>%2Fkeras%2F</url>
+    <content type="text"><![CDATA[基于多层神经网络的二分类模型，开始你的第一次keras深度学习训练。关于环境搭建，请见Keras安装教程。 导入所需的python库1234import numpy as npfrom keras.models import Sequentialfrom keras.layers import Densefrom sklearn.metrics import roc_auc_score, roc_curve, recall_score, f1_score 导入你的数据12x_train = np.random.random((10, 3))y_train = np.random.randint(2, size=(10, 1)) 或通过文件导入12x_train = np.genfromtxt(x_train_path, delimiter=',')y_train = np.genfromtxt(y_train_path, delimiter=',') 建立你的模型1model = Sequential() 模型的网络层设定 12model.add(Dense(128, input_dim=3, activation='tanh'))model.add(Dense(1, activation='sigmoid')) 模型的网络配置设定 1model.compile(loss='binary_crossentropy', optimizer='rmsprop') 训练你的模型1model.fit(x_train, y_train, epochs=20, batch_size=5) 评估你的模型 导入你的测试数据 12x_test = np.random.random((10, 3))y_test = np.random.randint(2, size=(10, 1)) 预测你的数据 1y_prob = model.predict(x_test) 计算你的模型预测AUC值 12auc = roc_auc_score(y_test, y_prob)print("AUC: " + str(auc)) 其它评价指标 约登指数 12345y_train_prob = model.predict(x_train)fpr, tpr, thresholds = roc_curve(y_train, y_train_prob)threshold = thresholds[np.argmax(tpr - fpr)]print("threshold: " + str(threshold)) 利用约登指数进行预测结果的二元分类 1y_prob_binary = y_prob &gt; threshold 灵敏度 12sensitivity = recall_score(y_test, y_prob_binary)print("Sensitivity: " + str(sensitivity)) 特异度 1234y_test_positive = np.sum(y_test)specifity = 1 - (np.sum(y_prob_binary) - sensitivity * y_test_positive) / (y_test.shape[0] - y_test_positive)print("Specifity: " + str(specifity)) F1值 12f1 = f1_score(y_test, y_prob_binary)print("F1: " + str(f1))]]></content>
+      <categories>
+        <category>deep learning</category>
+        <category>keras</category>
+      </categories>
+      <tags>
+        <tag>deep learning</tag>
+        <tag>keras</tag>
+        <tag>二分类</tag>
+      </tags>
+  </entry>
+</search>
