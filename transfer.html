@@ -2,7 +2,15 @@
 var querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
 var session = querys[1];
 var offer = { type: "offer", sdp: decodeURI(querys[2]) };
-var connection = new RTCPeerConnection();
+var connection = new RTCPeerConnection({
+    iceServers: [
+        { url: 'stun:stun.l.google.com:19302' },
+        { url: 'stun:stun1.l.google.com:19302' },
+        { url: 'stun:stun2.l.google.com:19302' },
+        { url: 'stun:stun3.l.google.com:19302' },
+        { url: 'stun:stun4.l.google.com:19302' }
+    ]
+});
 var channel = connection.createDataChannel("channel");
 connection.onicecandidate = evt => {
     if (evt.candidate) {
