@@ -1,5 +1,4 @@
 <script>
-    window.onerror=e=>alert(e);
 var querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
 var session = querys[1];
 var offer = { type: "offer", sdp: decodeURI(querys[2]) };
@@ -20,7 +19,10 @@ channel.onclose = () => window.close();
 connection.setRemoteDescription(offer)
     .then(() => connection.createAnswer())
     .then(answer => connection.setLocalDescription(answer))
-    .then(() => save('answer', connection.localDescription.sdp, 0));
+    .then(() => save('answer', connection.localDescription.sdp, 0)).catch(err => {
+                alert(err);
+                window.close();
+            });
 function save(key, value, i) {
     fetch("https://redis.io/session/" + session, {
         "headers": { "content-type": "application/x-www-form-urlencoded" },
