@@ -1,8 +1,8 @@
 <script>
-const querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
-const session = querys[1];
-const offer = { type: "offer", sdp: decodeURI(querys[2]) };
-const connection = new RTCPeerConnection({
+var querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
+var session = querys[1];
+var offer = { type: "offer", sdp: decodeURI(querys[2]) };
+var connection = new RTCPeerConnection({
     iceServers: [
         { url: 'stun:stun.l.google.com:19302' },
         { url: 'stun:stun1.l.google.com:19302' },
@@ -11,10 +11,14 @@ const connection = new RTCPeerConnection({
         { url: 'stun:stun4.l.google.com:19302' }
     ]
 });
-const channel = connection.createDataChannel("channel");
+var channel = connection.createDataChannel("channel");
 connection.onicecandidate = evt => {
     if (evt.candidate) {
-        connection.onicecandidate = null;
+        connection.onicecandidate = evt => {
+            if (evt.candidate) {
+                console.log(JSON.stringify(evt.candidate));
+            }
+        };
         save('candidate', JSON.stringify(evt.candidate), 0);
     }
 };
