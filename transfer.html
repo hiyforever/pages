@@ -1,4 +1,5 @@
 <script>
+    window.onerror=e=>alert(e);
 var querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
 var session = querys[1];
 var offer = { type: "offer", sdp: decodeURI(querys[2]) };
