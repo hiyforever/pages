@@ -1,0 +1,63 @@
+<script>
+const querys = location.search.match(/session=(\w+)&offer=([^&]+)/);
+const session = querys[1];
+const offer = { type: "offer", sdp: decodeURI(querys[2]) };
+const connection = new RTCPeerConnection({
+    iceServers: [
+        { url: 'stun:stun.l.google.com:19302' },
+        { url: 'stun:stun1.l.google.com:19302' },
+        { url: 'stun:stun2.l.google.com:19302' },
+        { url: 'stun:stun3.l.google.com:19302' },
+        { url: 'stun:stun4.l.google.com:19302' }
+    ]
+});
+const channel = connection.createDataChannel("channel");
+connection.onicecandidate = evt => {
+    if (evt.candidate) {
+        connection.onicecandidate = null;
+        save('candidate', JSON.stringify(evt.candidate), 0);
+    }
+};
+channel.onopen = () => readClipboard(text => {
+    channel.send(text);
+    // setTimeout(() => window.close(), 500);
+});
+connection.setRemoteDescription(offer)
+    .then(() => connection.createAnswer())
+    .then(answer => connection.setLocalDescription(answer))
+    .then(() => save('answer', connection.localDescription.sdp, 0));
+function save(key, value, i) {
+    fetch("https://redis.io/session/" + session, {
+        "headers": { "content-type": "application/x-www-form-urlencoded" },
+        "mode": "no-cors",
+        "body": "command=append+" + key + ":tmp+'" + encodeURIComponent(value.substr(i, 100)) + "'",
+        "method": "POST"
+    }).then(() => {
+        if (i + 100 < value.length) {
+            save(key, value, i + 100);
+        } else {
+            fetch("https://redis.io/session/" + session, {
+                "headers": { "content-type": "application/x-www-form-urlencoded" },
+                "mode": "no-cors",
+                "body": "command=rename+" + key + ":tmp+" + key + "",
+                "method": "POST"
+            }).catch(err => {
+                alert(err);
+                window.close();
+            });
+        }
+    }).catch(err => {
+        alert(err);
+        window.close();
+    });
+}
+function readClipboard(onread) {
+    function onpaste(evt) {
+        evt.preventDefault();
+        onread(evt.clipboardData.getData('text/plain'));
+    }
+    document.addEventListener('paste', onpaste);
+    document.execCommand('paste');
+    document.removeEventListener('paste', onpaste);
+}
+</script>
