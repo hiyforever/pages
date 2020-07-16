@@ -18,10 +18,8 @@ connection.onicecandidate = evt => {
         save('candidate', JSON.stringify(evt.candidate), 0);
     }
 };
-channel.onopen = () => readClipboard(text => {
-    channel.send(text);
-    // setTimeout(() => window.close(), 500);
-});
+channel.onopen = () => readClipboard(text => channel.send(text));
+channel.onclose = () => window.close();
 connection.setRemoteDescription(offer)
     .then(() => connection.createAnswer())
     .then(answer => connection.setLocalDescription(answer))
