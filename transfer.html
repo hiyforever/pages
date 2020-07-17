@@ -1,42 +1,45 @@
 <script>
-var querys = location.search.match(/session=([^&]+)&offer=([^&]+)/);
-var session = querys[1];
-var offer = { type: "offer", sdp: decodeURI(querys[2]) };
-var connection = new RTCPeerConnection({
-    iceServers: [{
-        urls: [
-            'stun:stun.l.google.com:19302',
-            'stun:stun1.l.google.com:19302',
-            'stun:stun2.l.google.com:19302',
-            'stun:stun3.l.google.com:19302',
-            'stun:stun4.l.google.com:19302'
-        ]
-    }]
-});
-var channel = connection.createDataChannel("channel");
-channel.onopen = () => {
-    const text = prompt();
-    if (text) {
-        channel.send(text);
-    } else {
-        window.close();
-    }
-};
-channel.onclose = () => window.close();
-connection.setRemoteDescription(offer)
-    .then(() => connection.createAnswer())
-    .then(answer => connection.setLocalDescription(answer))
-    .then(() => setTimeout(() => save('set', 'answer', connection.localDescription.sdp), 300))
-    .catch(err => {
-        alert(err);
-        window.close();
+var session = location.search.match(/session=([^&]+)/)[1];
+fetch("https://api.github.com/gists/3ae37d0f4f88ac60022b3f713045a9b9/comments/" + session)
+    .then(response => response.json())
+    .then(json => {
+        var offer = { type: "offer", sdp: json.body };
+        var connection = new RTCPeerConnection({
+            iceServers: [{
+                urls: [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:stun2.l.google.com:19302',
+                    'stun:stun3.l.google.com:19302',
+                    'stun:stun4.l.google.com:19302'
+                ]
+            }]
+        });
+        var channel = connection.createDataChannel("channel");
+        channel.onopen = () => {
+            const text = prompt();
+            if (text) {
+                channel.send(text);
+            } else {
+                window.close();
+            }
+        };
+        channel.onclose = () => window.close();
+        connection.setRemoteDescription(offer)
+            .then(() => connection.createAnswer())
+            .then(answer => connection.setLocalDescription(answer))
+            .then(() => setTimeout(() => save('set', 'answer', connection.localDescription.sdp), 300))
+            .catch(err => {
+                alert(err);
+                window.close();
+            });
+        function save(cmd, key, value) {
+            fetch("https://try.redis.io/eval?command=" + cmd + "+" + key + "+'" + encodeURIComponent(value) + "'&session_id=" + session, {
+                mode: 'no-cors'
+            }).catch(err => {
+                alert(err);
+                window.close();
+            });
+        }
     });
-function save(cmd, key, value) {
-    fetch("https://try.redis.io/eval?command=" + cmd + "+" + key + "+'" + encodeURIComponent(value) + "'&session_id=" + session, {
-        mode: 'no-cors'
-    }).catch(err => {
-        alert(err);
-        window.close();
-    });
-}
 </script>
