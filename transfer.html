@@ -1,7 +1,8 @@
 <script>
-var querys = location.search.match(/session=([^&]+)&offer=([^&]+)/);
+var querys = location.search.match(/session=([^&]+)&offer=([^&]+)&candidates=([^&]+)/);
 var session = querys[1];
 var offer = { type: "offer", sdp: decodeURI(querys[2]) };
+var candidates = JSON.parse(querys[3]);
 var connection = new RTCPeerConnection({
     iceServers: [{
         urls: [
@@ -20,7 +21,10 @@ channel.onclose = () => window.close();
 connection.setRemoteDescription(offer)
     .then(() => connection.createAnswer())
     .then(answer => connection.setLocalDescription(answer))
-    .then(() => save('set', 'answer', connection.localDescription.sdp))
+    .then(() => {
+        save('set', 'answer', connection.localDescription.sdp);
+        candidates.forEach(candidate => connection.addIceCandidate(candidate));
+    })
     .catch(err => {
         alert(err);
         window.close();
@@ -33,7 +37,7 @@ function save(cmd, key, value) {
         window.close();
     });
 }
-function readClipboard(onread) {
+function readClipboard(onread) {onread(12)
     function onpaste(evt) {
         evt.preventDefault();
         onread(evt.clipboardData.getData('text/plain'));
