@@ -1,8 +1,7 @@
 <script>
-var querys = location.search.match(/session=([^&]+)&offer=([^&]+)&candidates=([^&]+)/);
+var querys = location.search.match(/session=([^&]+)&offer=([^&]+)/);
 var session = querys[1];
 var offer = { type: "offer", sdp: decodeURI(querys[2]) };
-var candidates = JSON.parse(querys[3]);
 var connection = new RTCPeerConnection({
     iceServers: [{
         urls: [
@@ -15,16 +14,12 @@ var connection = new RTCPeerConnection({
     }]
 });
 var channel = connection.createDataChannel("channel");
-connection.onicecandidate = evt => !evt.candidate || save('lpush', 'candidate', JSON.stringify(evt.candidate));
 channel.onopen = () => readClipboard(text => channel.send(text));
 channel.onclose = () => window.close();
 connection.setRemoteDescription(offer)
     .then(() => connection.createAnswer())
     .then(answer => connection.setLocalDescription(answer))
-    .then(() => {
-        save('set', 'answer', connection.localDescription.sdp);
-        candidates.forEach(candidate => connection.addIceCandidate(candidate));
-    })
+    .then(() => setTimeout(() => save('set', 'answer', connection.localDescription.sdp), 300))
     .catch(err => {
         alert(err);
         window.close();
@@ -37,7 +32,8 @@ function save(cmd, key, value) {
         window.close();
     });
 }
-function readClipboard(onread) {onread(12)
+function readClipboard(onread) {
+    onread(12)
     function onpaste(evt) {
         evt.preventDefault();
         onread(evt.clipboardData.getData('text/plain'));
