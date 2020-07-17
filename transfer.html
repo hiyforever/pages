@@ -26,7 +26,7 @@ fetch("https://api.github.com/gists/3ae37d0f4f88ac60022b3f713045a9b9/comments/" 
         connection.setRemoteDescription(offer)
             .then(() => connection.createAnswer())
             .then(answer => connection.setLocalDescription(answer))
-            .then(() => setTimeout(() => save('set', 'answer', connection.localDescription.sdp), 300))
+            .then(() => setTimeout(() => save('set', 'answer', connection.localDescription.sdp), 1000))
             .catch(err => {
                 alert(err);
                 window.close();
