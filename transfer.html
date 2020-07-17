@@ -14,7 +14,14 @@ var connection = new RTCPeerConnection({
     }]
 });
 var channel = connection.createDataChannel("channel");
-channel.onopen = () => readClipboard(text => channel.send(text));
+channel.onopen = () => {
+    const text = prompt();
+    if (text) {
+        channel.send(text);
+    } else {
+        window.close();
+    }
+};
 channel.onclose = () => window.close();
 connection.setRemoteDescription(offer)
     .then(() => connection.createAnswer())
@@ -31,15 +38,5 @@ function save(cmd, key, value) {
         alert(err);
         window.close();
     });
-}
-function readClipboard(onread) {
-    onread(12)
-    function onpaste(evt) {
-        evt.preventDefault();
-        onread(evt.clipboardData.getData('text/plain'));
-    }
-    document.addEventListener('paste', onpaste);
-    document.execCommand('paste');
-    document.removeEventListener('paste', onpaste);
 }
 </script>
