@@ -41,5 +41,8 @@ fetch("https://api.github.com/gists/3ae37d0f4f88ac60022b3f713045a9b9/comments/" 
                 window.close();
             });
         }
+    }).catch(err => {
+        alert(err);
+        window.close();
     });
 </script>
