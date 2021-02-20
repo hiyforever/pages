@@ -6,13 +6,13 @@
 title: 记我所记
 subtitle:
 description:
-author: miku.tk
+author: hiyforever
 language: zh-Hans
 timezone: Asia/Shanghai
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://blog.miku.tk
+url: https://hiyforever.github.io
 root: /
 permalink: :title/
 permalink_defaults:
